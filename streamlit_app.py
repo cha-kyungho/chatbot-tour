@@ -13,7 +13,7 @@ import os
 st.title("여행용 챗봇과 대화하기")
 
 # client = OpenAI(temperature=0.7, openai_api_key=openai_api_key)
-openai_api_key = st.secrets['REPLICATE_KEY']['API_KEY']
+openai_api_key = st.secrets['openai']['API_KEY']
 client = OpenAI(api_key  = openai_api_key)
 
 
