@@ -9,6 +9,12 @@ import datetime
 
 #streamlit secrets 로드확인
 #st.write(st.secrets)
+# 상단 이미지 추가
+st.image(
+    "top_banner.png",  # 사주분석에 맞는 이미지 URL 또는 로컬 파일 경로
+    caption="사주분석 서비스",  # 이미지 캡션
+    use_column_width=True  # 화면 너비에 맞게 이미지 크기 조정
+)
 
 # Streamlit app
 st.title("사주분석 챗봇과 대화")
