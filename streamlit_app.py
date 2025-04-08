@@ -30,7 +30,7 @@ birth_time = st.sidebar.time_input("출생 시간을 선택하세요:", "09:00")
 today = datetime.date.today()
 
 #초기화
-if not st.session_state.messages:
+if 'messages' not in st.session_state:
     st.session_state.messages = []
 
 # 사용자 입력
