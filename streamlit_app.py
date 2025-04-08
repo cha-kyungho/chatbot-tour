@@ -1,16 +1,17 @@
+import requests
+
 import openai
 import streamlit as st
 from openai import OpenAI
 import os
+import datetime
 
 
-# 개선 1 : 대화 흐름 개선
-# 개선 2 : 시스템 메시지 넣기(여행용 챗봇)
-# 개선 3 : 대화 초기화 버튼 추가해 보기.
-# 개선 4 : 대화가 여러 언어가 동시에 대답을 하도록 하기.
+#streamlit secrets 로드확인
+#st.write(st.secrets)
 
 # Streamlit app
-st.title("여행용 챗봇과 대화하기")
+st.title("사주분석 챗봇과 대화")
 
 # client = OpenAI(temperature=0.7, openai_api_key=openai_api_key)
 openai_api_key = st.secrets['openai']['API_KEY']
@@ -18,41 +19,47 @@ client = OpenAI(api_key  = openai_api_key)
 
 
 # 언어 선택 체크박스  
-st.sidebar.subheader("언어 선택")  
-languages = {  
-    "한국어": "ko",  
-    "영어": "en",  
-    "일본어": "ja",  
-    "중국어": "zh"  
-}  
+st.sidebar.subheader("사주풀이")  
+st.sidebar.write("생년월일과 시간을 입력하면 사주풀이 결과를 제공합니다.")
 
-selected_languages = st.sidebar.multiselect("지원할 언어를 선택하세요:", 
-                                    list(languages.keys()), default=["한국어"])
+# 사용자 입력 받기
+name = st.sidebar.text_input("이름을 입력하세요:")
+birth_date = st.sidebar.date_input("생년월일을 선택하세요:", "2000-01-01")
+birth_time = st.sidebar.time_input("출생 시간을 선택하세요:", "09:00")
+# 시스템 메시지에 오늘 날짜 추가
+today = datetime.date.today()
 
-# 초기 대화 상태 설정
-# 개선 2
-if "messages" not in st.session_state:
-    # 시스템 메시지에 선택된 언어 반영  
-    language_list = ", ".join(selected_languages) 
-    st.session_state.messages = [  
-        {"role": "system", 
-         "content": "당신은 여행에 관한 질문에 답하는 챗봇입니다. "
-                    "여행지 추천, 준비물, 문화, 음식 등 다양한 주제에 대해 친절하게 안내해 주세요."
-                    "답변은 기본적으로 한국어로 그리고 동시에 일본어로 번역해서 답변해 주렴."}  
-    ] 
+#초기화
+st.session_state.messages = []
 
 # 사용자 입력
-user_input = st.text_input("당신:", key="user_input")
+user_input = st.sidebar.text_input("질문:", key="user_input")
 
-# 개선 3 : 대화 초기화 버튼 추가
-if st.button("대화 초기화") and st.session_state.messages:
-    st.session_state.messages = []
+if st.sidebar.button("전송") :
+    if not name or not birth_date or not birth_time or not user_input:
+        # 사용자 입력이 없을 경우 경고 메시지 표시
+        st.warning("이름, 생년월일, 출생시간, 질문을 모두 입력해주세요.")
+        st.stop() # 중단
+    
+    if len(st.session_state.messages) < 2:  # 수정: count -> len
+        # 초기 대화 상태 설정
+        # 시스템 메시지에 선택된 언어 반영  
+        st.session_state.messages = [  
+            {"role": "system", 
+             "content": "당신은 사주풀이 전문가 챗봇입니다."
+                        "기본 사주 내용과 자세한 사주 내용과 풀이 근거를 알려주고 요약 내용을 제공해줘."
+                        "답변 내용이 자세하고 길게 설명해 줬으면 좋겠어." }
+        ] 
+        # 시스템 메시지에 사용자 정보를 추가
+        user_info = "사용자정보 이름: {}, 생년월일: {}, 출생시간: {}, 오늘: {}".format(name, birth_date, birth_time, today)
+        st.session_state.messages.append({"role": "user", 
+                                          "content": user_info})
 
-if st.button("전송") and user_input:
     # 사용자 메시지 추가
     st.session_state.messages.append({"role": "user", 
                                       "content": user_input})
 
+    st.markdown("---")
     # OpenAI API 호출
     response = client.chat.completions.create(
         model="gpt-4o-mini",  # gpt-4로 변경
@@ -68,15 +75,25 @@ if st.button("전송") and user_input:
     # 사용자 입력 초기화
     user_input = ""
 
+# 개선 3 : 대화 초기화 버튼 추가
+if st.button("대화 초기화") and st.session_state.messages:
+    st.session_state.messages = []
+
+
 # 대화 내용 표시
 for message in st.session_state.messages:
-    # st.markdown(message)
-    role = "👤"  if message["role"] == "user" else "🤖"
-    # st.markdown(f"👤: {response_message}")
-    st.markdown(f"{role}: {message['content']}")
+    if message["role"] == "user" and message["content"].find("사용자정보") == -1:
+        # 사용자 메시지를 우측 정렬
+        st.markdown(
+            f"""
+            <div style="text-align: right; color: blue;">
+                질문: {message['content']}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        st.markdown("---")
 
-# 선택된 언어에 따라 응답 표시  
-for lang in selected_languages:  
-    if lang != "한국어":  # 한국어는 기본 언어로 사용  
-        translated_message = f"{message['content']} ({lang})"  # 번역된 메시지 표시 (실제 번역 로직은 필요)  
-        st.markdown(f"🤖 ({lang}): {translated_message}")
+    if message["role"] == "assistant":
+        st.markdown(f"{message['content']}")
+        st.markdown("---")  # 구분선 추가
